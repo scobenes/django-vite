@@ -1,6 +1,14 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Callable, NamedTuple, Optional, Union
+from typing import (
+    Dict,
+    List,
+    Callable,
+    NamedTuple,
+    Optional,
+    Union,
+    Pattern,
+)
 from urllib.parse import urljoin
 import warnings
 
@@ -49,6 +57,10 @@ class DjangoViteConfig(NamedTuple):
 
     # Default Vite server path to React RefreshRuntime for @vitejs/plugin-react.
     react_refresh_url: str = "@react-refresh"
+
+    # Monkey patches
+    production_base_url: str = ""
+    public_folder_pass_through: bool = False
 
 
 class ManifestEntry(NamedTuple):
@@ -198,10 +210,17 @@ class ManifestClient:
                 or if manifest was never parsed due to dev_mode=True.
         """
         if path not in self._entries:
-            raise DjangoViteAssetNotFoundError(
-                f"Cannot find {path} for app={self.app_name} in Vite manifest at "
-                f"{self.manifest_path}"
-            )
+            if self._config.public_folder_pass_through:
+                return ManifestEntry(
+                    file=path,
+                    src=path,
+                    isEntry=True,
+                )
+            else:
+                raise DjangoViteAssetNotFoundError(
+                    f"Cannot find {path} for app={self.app_name} in Vite manifest at "
+                    f"{self.manifest_path}"
+                )
 
         return self._entries[path]
 
@@ -268,10 +287,10 @@ class DjangoViteAppClient:
                 prefix += "/"
             production_server_url = urljoin(prefix, path)
 
-        if apps.is_installed("django.contrib.staticfiles"):
-            from django.contrib.staticfiles.storage import staticfiles_storage
+        from django.conf import settings
 
-            return staticfiles_storage.url(production_server_url)
+        if self._config.production_base_url:
+            production_server_url = urljoin(self._config.production_base_url, path)
 
         return production_server_url
 
@@ -690,6 +709,9 @@ class DjangoViteAssetLoader:
 
         for app_name, config in django_vite_settings.items():
             if not isinstance(config, DjangoViteConfig):
+                for key, value in config.items():
+                    if callable(value):
+                        config[key] = value()
                 config = DjangoViteConfig(**config)
             cls._instance._apps[app_name] = DjangoViteAppClient(config, app_name)
 
