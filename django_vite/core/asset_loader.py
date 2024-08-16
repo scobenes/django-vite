@@ -117,7 +117,11 @@ class ManifestClient:
         Returns:
             Path -- the path to the vite config's manifest.json
         """
-        initial_manifest_path = self._config.manifest_path
+        if self._config.production_base_url:
+            return (
+                self._config.production_base_url
+                / "manifest.json"
+            )
         if not initial_manifest_path:
             return (
                 Path(settings.STATIC_ROOT)
