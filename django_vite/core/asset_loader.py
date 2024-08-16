@@ -176,6 +176,7 @@ class ManifestClient:
         legacy_polyfills_entry: Optional[ManifestEntry] = None
 
         try:
+            print(self.manifest_path)
             with open(self.manifest_path, "r") as manifest_file:
                 manifest_content = manifest_file.read()
                 manifest_json = json.loads(manifest_content)
@@ -190,6 +191,8 @@ class ManifestClient:
                     entries[path] = manifest_entry
                     if self.legacy_polyfills_motif in path:
                         legacy_polyfills_entry = manifest_entry
+
+                print(entries)
 
                 return self.ParsedManifestOutput(entries, legacy_polyfills_entry)
 
