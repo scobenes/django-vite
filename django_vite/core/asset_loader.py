@@ -12,6 +12,7 @@ from typing import (
 from urllib.parse import urljoin
 import warnings
 
+import requests
 from django.apps import apps
 from django.conf import settings
 from django.core.checks import Warning
@@ -119,6 +120,7 @@ class ManifestClient:
         """
         if self._config.production_base_url:
             return urljoin(self._config.production_base_url, "manifest.json")
+        initial_manifest_path = self._config.manifest_path
         if not initial_manifest_path:
             return (
                 Path(settings.STATIC_ROOT)
@@ -176,25 +178,21 @@ class ManifestClient:
         legacy_polyfills_entry: Optional[ManifestEntry] = None
 
         try:
-            print(self.manifest_path)
-            with open(self.manifest_path, "r") as manifest_file:
-                manifest_content = manifest_file.read()
-                manifest_json = json.loads(manifest_content)
+            request = requests.get(self.manifest_path)
+            manifest_json = request.json()
 
-                for path, manifest_entry_data in manifest_json.items():
-                    filtered_manifest_entry_data = {
-                        key: value
-                        for key, value in manifest_entry_data.items()
-                        if key in ManifestEntry._fields
-                    }
-                    manifest_entry = ManifestEntry(**filtered_manifest_entry_data)
-                    entries[path] = manifest_entry
-                    if self.legacy_polyfills_motif in path:
-                        legacy_polyfills_entry = manifest_entry
+            for path, manifest_entry_data in manifest_json.items():
+                filtered_manifest_entry_data = {
+                    key: value
+                    for key, value in manifest_entry_data.items()
+                    if key in ManifestEntry._fields
+                }
+                manifest_entry = ManifestEntry(**filtered_manifest_entry_data)
+                entries[path] = manifest_entry
+                if self.legacy_polyfills_motif in path:
+                    legacy_polyfills_entry = manifest_entry
 
-                print(entries)
-
-                return self.ParsedManifestOutput(entries, legacy_polyfills_entry)
+            return self.ParsedManifestOutput(entries, legacy_polyfills_entry)
 
         except Exception as error:
             raise DjangoViteManifestError(
