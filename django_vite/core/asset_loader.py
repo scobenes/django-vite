@@ -62,6 +62,7 @@ class DjangoViteConfig(NamedTuple):
     # Monkey patches
     production_base_url: str = ""
     public_folder_pass_through: bool = False
+    get_manifest: Optional[Callable] = None
 
 
 class ManifestEntry(NamedTuple):
@@ -178,8 +179,11 @@ class ManifestClient:
         legacy_polyfills_entry: Optional[ManifestEntry] = None
 
         try:
-            request = requests.get(self.manifest_path)
-            manifest_json = request.json()
+            if self._config.get_manifest and callable(self._config.get_manifest):
+                manifest_json = self._config.get_manifest()
+            else:
+                request = requests.get(self.manifest_path)
+                manifest_json = request.json()
 
             for path, manifest_entry_data in manifest_json.items():
                 filtered_manifest_entry_data = {
