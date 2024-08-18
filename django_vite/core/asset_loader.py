@@ -716,7 +716,7 @@ class DjangoViteAssetLoader:
         for app_name, config in django_vite_settings.items():
             if not isinstance(config, DjangoViteConfig):
                 for key, value in config.items():
-                    if callable(value):
+                    if callable(value) and not key.startswith("get_"):
                         config[key] = value()
                 config = DjangoViteConfig(**config)
             cls._instance._apps[app_name] = DjangoViteAppClient(config, app_name)
