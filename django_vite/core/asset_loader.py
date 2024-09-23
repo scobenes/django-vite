@@ -180,7 +180,7 @@ class ManifestClient:
 
         try:
             if self._config.get_manifest and callable(self._config.get_manifest):
-                manifest_json = self._config.get_manifest()
+                manifest_json = self._config.get_manifest(self._config)
             else:
                 request = requests.get(self.manifest_path)
                 manifest_json = request.json()
@@ -293,10 +293,12 @@ class DjangoViteAppClient:
                 prefix += "/"
             production_server_url = urljoin(prefix, path)
 
-        from django.conf import settings
-
         if self._config.production_base_url:
             production_server_url = urljoin(self._config.production_base_url, path)
+        else:
+            if apps.is_installed("django.contrib.staticfiles"):
+                from django.contrib.staticfiles.storage import staticfiles_storage
+                return staticfiles_storage.url(production_server_url)
 
         return production_server_url
 
